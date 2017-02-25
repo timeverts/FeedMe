@@ -36,7 +36,7 @@ class FeedMe_ProcessService extends BaseApplicationComponent
         $return = $feed->attributes;
 
         // Set our start time to track feed processing time
-        $this->_time_start = microtime(true); 
+        $this->_time_start = microtime(true);
 
         // Add some additional information to our FeedModel - for ease of use in processing
         $return['fields'] = array();
@@ -94,11 +94,27 @@ class FeedMe_ProcessService extends BaseApplicationComponent
         // Set up a model for this Element Type
         $element = $this->_service->setModel($feed);
 
-        // Set criteria according to Element Type 
+        // Set criteria according to Element Type
         $criteria = $this->_criteria;
 
         // From the raw data in our feed, process it ready for mapping (more to do below)
         $data = $this->_data[$step];
+
+        // Fire an "onBeforeStepProcessFeed" event.
+        $event = new Event($this, array(
+            'step' => $step,
+            'data' => $data,
+            'settings' => $feed
+        ));
+        craft()->feedMe_process->onBeforeStepProcessFeed($event);
+
+        // Is the event preventing processing this step?
+        if (!$event->performAction) {
+            return;
+        }
+
+        // Refresh data from event in case it's been modified by a plugin.
+        $data = $event->params['data'];
 
         // For each chunck of import-ready data, we need to further prepare it for Craft
         foreach ($data as $handle => $preppedData) {
@@ -159,9 +175,21 @@ class FeedMe_ProcessService extends BaseApplicationComponent
             $element->setContentFromPost($fieldData);
         }
 
+        // Fire an "onBeforeSaveFeedElement" event.
+        $event = new Event($this, array(
+            'element' => $element,
+            'settings' => $feed
+        ));
+        craft()->feedMe_process->onBeforeSaveFeedElement($event);
+
+        // Is the event preventing processing this step?
+        if (!$event->performAction) {
+            return;
+        }
+
         $this->_debugOutput($element->attributes);
         $this->_debugOutput($fieldData);
-        
+
         // Save the element
         if ($this->_service->save($element, $fieldData, $feed)) {
             // Give elements a chance to perform actions after save
@@ -238,7 +266,7 @@ class FeedMe_ProcessService extends BaseApplicationComponent
 
         craft()->feedMe_process->finalizeAfterProcess($feedSettings, $feed);
     }
-    
+
 
 
     // Event Handlers
@@ -247,6 +275,16 @@ class FeedMe_ProcessService extends BaseApplicationComponent
     public function onBeforeProcessFeed(\CEvent $event)
     {
         $this->raiseEvent('onBeforeProcessFeed', $event);
+    }
+
+    public function onBeforeStepProcessFeed(\CEvent $event)
+    {
+        $this->raiseEvent('onBeforeStepProcessFeed', $event);
+    }
+
+    public function onBeforeSaveFeedElement(\CEvent $event)
+    {
+        $this->raiseEvent('onBeforeSaveFeedElement', $event);
     }
 
     public function onStepProcessFeed(\CEvent $event)
