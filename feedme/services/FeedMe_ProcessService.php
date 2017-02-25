@@ -101,6 +101,22 @@ class FeedMe_ProcessService extends BaseApplicationComponent
         // From the raw data in our feed, process it ready for mapping (more to do below)
         $data = $this->_data[$step];
 
+        // Fire an "onBeforeStepProcessFeed" event.
+        $event = new Event($this, array(
+            'step' => $step,
+            'data' => $data,
+            'settings' => $feed
+        ));
+        craft()->feedMe_process->onBeforeStepProcessFeed($event);
+
+        // Is the event preventing processing this step?
+        if (!$event->performAction) {
+            return;
+        }
+
+        // Refresh data from event in case it's been modified by a plugin.
+        $data = $event->params['data'];
+
         // For each chunck of import-ready data, we need to further prepare it for Craft
         foreach ($data as $handle => $preppedData) {
             // From each field, we may need to process the raw data for Craft fields
@@ -158,6 +174,18 @@ class FeedMe_ProcessService extends BaseApplicationComponent
         // Set the Element Type's fields data - but only if we're not targeting a locale
         if (!$feed['locale']) {
             $element->setContentFromPost($fieldData);
+        }
+
+        // Fire an "onBeforeSaveFeedElement" event.
+        $event = new Event($this, array(
+            'element' => $element,
+            'settings' => $feed
+        ));
+        craft()->feedMe_process->onBeforeSaveFeedElement($event);
+
+        // Is the event preventing processing this step?
+        if (!$event->performAction) {
+            return;
         }
 
         $this->_debugOutput($element->attributes);
@@ -248,6 +276,16 @@ class FeedMe_ProcessService extends BaseApplicationComponent
     public function onBeforeProcessFeed(\CEvent $event)
     {
         $this->raiseEvent('onBeforeProcessFeed', $event);
+    }
+
+    public function onBeforeStepProcessFeed(\CEvent $event)
+    {
+        $this->raiseEvent('onBeforeStepProcessFeed', $event);
+    }
+
+    public function onBeforeSaveFeedElement(\CEvent $event)
+    {
+        $this->raiseEvent('onBeforeSaveFeedElement', $event);
     }
 
     public function onStepProcessFeed(\CEvent $event)
