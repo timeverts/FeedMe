@@ -42,13 +42,6 @@ class FeedMe_LicenseService extends BaseApplicationComponent
                 craft()->cache->set($this->pingStateKey, true, $this->pingCacheTime);
 
                 return $this->_handleEtResponse($etResponse);
-            } else {
-                $requestIp = craft()->request->getIpAddress();
-
-                // Local requests get full access when unable to ping - but not a license
-                if ($requestIp == '::1') {
-                    $this->setEdition('1');
-                }
             }
         }
 
@@ -154,7 +147,6 @@ class FeedMe_LicenseService extends BaseApplicationComponent
         $et = new FeedMe_License(static::RegisterPlugin, $this->pluginHandle, $this->pluginVersion, $licenseKey);
         $etResponse = $et->phoneHome(true);
 
-        // Handle the response
         return $this->_handleEtResponse($etResponse);
     }
 
@@ -184,6 +176,8 @@ class FeedMe_LicenseService extends BaseApplicationComponent
                     default:
                         $this->setLicenseKeyStatus(LicenseKeyStatus::Unknown);
                 }
+
+                FeedMePlugin::log('License error: ' . $etResponse->errors[0], LogLevel::Error, true);
             } else {
                 return false;
             }
