@@ -42,7 +42,8 @@ class FeedMe_HelpController extends BaseController
             $message = $getHelpModel->message . "\n\n" .
                 "------------------------------\n\n" .
                 'Craft '.craft()->getEditionName().' '.$version . "\n\n" .
-                'Feed Me '.$plugin->getVersion();
+                'Feed Me '.$plugin->getVersion() . "\n\n" .
+                'License Key: '.craft()->feedMe_license->getLicenseKey();
 
             try {
                 $zipFile = $this->_createZip();
@@ -90,7 +91,10 @@ class FeedMe_HelpController extends BaseController
                 // Save the contents of the feed
                 //
                 if ($getHelpModel->attachFeed) {
-                    $feedData = craft()->feedMe_data->getRawData($feed->feedUrl);
+                    // Check for and environment variables in url
+                    $url = craft()->config->parseEnvironmentString($feed->feedUrl);
+
+                    $feedData = craft()->feedMe_data->getRawData($url);
 
                     $tempFile = $tempFolder.'feed.'.StringHelper::toLowerCase($feed->feedType);
 
@@ -107,12 +111,16 @@ class FeedMe_HelpController extends BaseController
                 if ($getHelpModel->attachFields) {
                     $fieldInfo = array();
 
-                    foreach ($feed->fieldMapping as $feedHandle => $fieldHandle) {
+                    foreach ($feed->fieldMapping as $fieldHandle => $feedHandle) {
                         if ($fieldHandle && !is_array($fieldHandle)) {
+                            // Check for sub-fields and options
+                            $fieldHandleInfo = explode('-', $fieldHandle);
+                            $fieldHandle = $fieldHandleInfo[0];
+
                             $field = craft()->fields->getFieldByHandle($fieldHandle);
 
-                            if ($field) {
-                                $fieldInfo[] = $this->_prepareExportField($field);
+                            if ($field && !isset($fieldInfo[$field->handle])) {
+                                $fieldInfo[$field->handle] = $this->_prepareExportField($field);
                             }
                         }
                     }
@@ -148,7 +156,7 @@ class FeedMe_HelpController extends BaseController
 
             $email = new EmailModel();
             $email->fromEmail = $getHelpModel->fromEmail;
-            $email->toEmail = "web@sgroup.com.au";
+            $email->toEmail = "support@sgroup.com.au";
             $email->subject = "Feed Me Support";
             $email->body = $message;
 
@@ -229,9 +237,7 @@ class FeedMe_HelpController extends BaseController
 
     private function _prepareExportField($field)
     {
-        $fieldDefs = array();
-
-        $fieldDefs[$field->handle] = array(
+        $fieldDefs = array(
             'name'         => $field->name,
             'context'      => $field->context,
             'instructions' => $field->instructions,
@@ -263,7 +269,7 @@ class FeedMe_HelpController extends BaseController
                 );
             }
 
-            $fieldDefs[$field->handle]['blockTypes'] = $blockTypeDefs;
+            $fieldDefs['blockTypes'] = $blockTypeDefs;
         }
 
         if ($field->type == 'SuperTable') {
@@ -288,7 +294,7 @@ class FeedMe_HelpController extends BaseController
                 );
             }
 
-            $fieldDefs[$field->handle]['blockTypes'] = $blockTypeDefs;
+            $fieldDefs['blockTypes'] = $blockTypeDefs;
         }
 
         return $fieldDefs;
