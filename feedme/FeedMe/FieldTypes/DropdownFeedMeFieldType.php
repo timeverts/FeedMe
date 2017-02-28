@@ -9,7 +9,7 @@ class DropdownFeedMeFieldType extends BaseFeedMeFieldType
     // =========================================================================
 
 
-    
+
 
 
     // Public Methods
@@ -34,9 +34,13 @@ class DropdownFeedMeFieldType extends BaseFeedMeFieldType
                 $preppedData = $option['value'];
                 break;
             }
+            else if ($data == $option['label']) {
+                $preppedData = $option['value'];
+                break;
+            }
         }
 
         return $preppedData;
     }
-    
+
 }
